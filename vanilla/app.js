@@ -175,6 +175,9 @@ const App = {
     }
 
     this.attachEvents();
+    
+    // Initialize charts after DOM is ready
+    setTimeout(() => this.initCharts(), 0);
   },
 
   renderOnboarding() {
@@ -463,8 +466,6 @@ const App = {
   },
 
   renderStats() {
-    const maxValue = Math.max(...this.weeklyData.map(d => d.value));
-
     return `
       <div class="page safe-top">
         <div class="page-header">
@@ -483,13 +484,27 @@ const App = {
             ${this.icons.trendingUp}
             <h3 class="chart-title">Capturas por Dia</h3>
           </div>
-          <div class="chart-bars">
-            ${this.weeklyData.map(item => `
-              <div class="chart-bar-wrapper">
-                <div class="chart-bar gradient-primary" style="height: ${(item.value / maxValue) * 100}%"></div>
-                <span class="chart-bar-label">${item.day}</span>
-              </div>
-            `).join('')}
+          <div class="chart-container">
+            <canvas id="weeklyChart"></canvas>
+          </div>
+        </div>
+
+        <div class="charts-row">
+          <div class="chart-card-small card-glow">
+            <div class="chart-header-small">
+              <h4 class="chart-title-small">Por App</h4>
+            </div>
+            <div class="chart-container-small">
+              <canvas id="appsChart"></canvas>
+            </div>
+          </div>
+          <div class="chart-card-small card-glow">
+            <div class="chart-header-small">
+              <h4 class="chart-title-small">Espaço</h4>
+            </div>
+            <div class="chart-container-small">
+              <canvas id="storageChart"></canvas>
+            </div>
           </div>
         </div>
 
@@ -540,6 +555,165 @@ const App = {
         </div>
       </div>
     `;
+  },
+
+  initCharts() {
+    if (this.state.activeTab !== 'stats') return;
+
+    // Destroy existing charts
+    if (this.charts) {
+      Object.values(this.charts).forEach(chart => chart?.destroy());
+    }
+    this.charts = {};
+
+    const isDark = document.documentElement.classList.contains('dark');
+    const textColor = isDark ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)';
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+
+    // Weekly Bar Chart
+    const weeklyCtx = document.getElementById('weeklyChart');
+    if (weeklyCtx) {
+      this.charts.weekly = new Chart(weeklyCtx, {
+        type: 'bar',
+        data: {
+          labels: this.weeklyData.map(d => d.day),
+          datasets: [{
+            data: this.weeklyData.map(d => d.value),
+            backgroundColor: (context) => {
+              const chart = context.chart;
+              const { ctx, chartArea } = chart;
+              if (!chartArea) return 'hsl(199, 89%, 48%)';
+              const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+              gradient.addColorStop(0, 'hsl(199, 89%, 48%)');
+              gradient.addColorStop(1, 'hsl(265, 89%, 60%)');
+              return gradient;
+            },
+            borderRadius: 8,
+            borderSkipped: false,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: isDark ? 'hsl(222, 47%, 12%)' : 'hsl(0, 0%, 100%)',
+              titleColor: textColor,
+              bodyColor: textColor,
+              borderColor: gridColor,
+              borderWidth: 1,
+              cornerRadius: 8,
+              padding: 12,
+              callbacks: {
+                label: (context) => `${context.raw} capturas`
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { color: textColor, font: { family: 'Inter', size: 11 } }
+            },
+            y: {
+              grid: { color: gridColor },
+              ticks: { color: textColor, font: { family: 'Inter', size: 11 } }
+            }
+          }
+        }
+      });
+    }
+
+    // Doughnut Chart - Apps
+    const appsCtx = document.getElementById('appsChart');
+    if (appsCtx) {
+      this.charts.apps = new Chart(appsCtx, {
+        type: 'doughnut',
+        data: {
+          labels: this.topApps.map(a => a.name),
+          datasets: [{
+            data: this.topApps.map(a => a.count),
+            backgroundColor: this.topApps.map(a => a.color),
+            borderWidth: 0,
+            borderRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '65%',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: isDark ? 'hsl(222, 47%, 12%)' : 'hsl(0, 0%, 100%)',
+              titleColor: textColor,
+              bodyColor: textColor,
+              borderColor: gridColor,
+              borderWidth: 1,
+              cornerRadius: 8,
+              padding: 12,
+              callbacks: {
+                label: (context) => `${context.label}: ${context.raw} arquivos`
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Line Chart - Storage
+    const storageCtx = document.getElementById('storageChart');
+    if (storageCtx) {
+      const storageData = [2.1, 2.4, 2.8, 3.2, 2.9, 2.5, 2.3];
+      this.charts.storage = new Chart(storageCtx, {
+        type: 'line',
+        data: {
+          labels: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
+          datasets: [{
+            data: storageData,
+            borderColor: 'hsl(142, 76%, 45%)',
+            backgroundColor: (context) => {
+              const chart = context.chart;
+              const { ctx, chartArea } = chart;
+              if (!chartArea) return 'transparent';
+              const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+              gradient.addColorStop(0, 'hsla(142, 76%, 45%, 0)');
+              gradient.addColorStop(1, 'hsla(142, 76%, 45%, 0.3)');
+              return gradient;
+            },
+            fill: true,
+            tension: 0.4,
+            pointRadius: 0,
+            pointHoverRadius: 6,
+            pointHoverBackgroundColor: 'hsl(142, 76%, 45%)',
+            borderWidth: 2,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: isDark ? 'hsl(222, 47%, 12%)' : 'hsl(0, 0%, 100%)',
+              titleColor: textColor,
+              bodyColor: textColor,
+              borderColor: gridColor,
+              borderWidth: 1,
+              cornerRadius: 8,
+              padding: 12,
+              callbacks: {
+                label: (context) => `${context.raw} GB usado`
+              }
+            }
+          },
+          scales: {
+            x: { display: false },
+            y: { display: false }
+          }
+        }
+      });
+    }
   },
 
   renderSettings() {

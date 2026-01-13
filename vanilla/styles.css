@@ -1113,6 +1113,43 @@ body {
   color: hsl(var(--foreground));
 }
 
+.chart-container {
+  position: relative;
+  height: 12rem;
+  width: 100%;
+}
+
+.charts-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.chart-card-small {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 1rem;
+  padding: 1rem;
+}
+
+.chart-header-small {
+  margin-bottom: 0.75rem;
+}
+
+.chart-title-small {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.chart-container-small {
+  position: relative;
+  height: 8rem;
+  width: 100%;
+}
+
+/* Keep old chart-bars for backward compatibility */
 .chart-bars {
   display: flex;
   align-items: flex-end;
